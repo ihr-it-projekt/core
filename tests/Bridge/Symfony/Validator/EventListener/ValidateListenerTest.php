@@ -91,17 +91,17 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
         $validatorProphecy->validate($data, null, ['a', 'b', 'c'])->shouldBeCalled();
         $validator = $validatorProphecy->reveal();
 
-
         list($resourceMetadataFactory, $event) = $this->createEventObject('groups_builder', $data);
 
         $containerProphecy = $this->prophesize(ContainerInterface::class);
         $containerProphecy->has('groups_builder')->willReturn(true)->shouldBeCalled();
-        $containerProphecy->get('groups_builder')->willReturn(new class {
+        $containerProphecy->get('groups_builder')->willReturn(new class() {
             public function __invoke(): array
             {
                 return ['a', 'b', 'c'];
             }
-        })->shouldBeCalled();
+        }
+        )->shouldBeCalled();
 
         $validationViewListener = new ValidateListener($validator, $resourceMetadataFactory, $containerProphecy->reveal());
         $validationViewListener->onKernelView($event);
@@ -144,14 +144,7 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
         $validationViewListener->onKernelView($event);
     }
 
-    /**
-     * @param array $expectedValidationGroups
-     * @param mixed $data
-     * @param bool  $receive
-     *
-     * @return array
-     */
-    private function createEventObject($expectedValidationGroups, $data, bool $receive = true)
+    private function createEventObject($expectedValidationGroups, $data, bool $receive = true): array
     {
         $resourceMetadata = new ResourceMetadata(null, null, null, [
             'create' => [
