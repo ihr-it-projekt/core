@@ -17,6 +17,7 @@ use ApiPlatform\Core\Bridge\Symfony\Validator\EventListener\ValidateListener;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Resource\ResourceMetadata;
 use ApiPlatform\Core\Tests\Fixtures\DummyEntity;
+use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -60,6 +61,49 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
         list($resourceMetadataFactory, $event) = $this->createEventObject($expectedValidationGroups, $data);
 
         $validationViewListener = new ValidateListener($validator, $resourceMetadataFactory);
+        $validationViewListener->onKernelView($event);
+    }
+
+    public function testGetGroupsFromCallable()
+    {
+        $data = new DummyEntity();
+        $expectedValidationGroups = ['a', 'b', 'c'];
+
+        $validatorProphecy = $this->prophesize(ValidatorInterface::class);
+        $validatorProphecy->validate($data, null, $expectedValidationGroups)->shouldBeCalled();
+        $validator = $validatorProphecy->reveal();
+
+        $closure = function () use ($expectedValidationGroups) {
+            return $expectedValidationGroups;
+        };
+
+        list($resourceMetadataFactory, $event) = $this->createEventObject($closure, $data);
+
+        $validationViewListener = new ValidateListener($validator, $resourceMetadataFactory);
+        $validationViewListener->onKernelView($event);
+    }
+
+    public function testGetGroupsFromService()
+    {
+        $data = new DummyEntity();
+
+        $validatorProphecy = $this->prophesize(ValidatorInterface::class);
+        $validatorProphecy->validate($data, null, ['a', 'b', 'c'])->shouldBeCalled();
+        $validator = $validatorProphecy->reveal();
+
+
+        list($resourceMetadataFactory, $event) = $this->createEventObject('groups_builder', $data);
+
+        $containerProphecy = $this->prophesize(ContainerInterface::class);
+        $containerProphecy->has('groups_builder')->willReturn(true)->shouldBeCalled();
+        $containerProphecy->get('groups_builder')->willReturn(new class {
+            public function __invoke(): array
+            {
+                return ['a', 'b', 'c'];
+            }
+        })->shouldBeCalled();
+
+        $validationViewListener = new ValidateListener($validator, $resourceMetadataFactory, $containerProphecy->reveal());
         $validationViewListener->onKernelView($event);
     }
 
