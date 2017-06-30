@@ -17,6 +17,7 @@ use ApiPlatform\Core\Bridge\Symfony\Validator\EventListener\ValidateListener;
 use ApiPlatform\Core\Metadata\Resource\Factory\ResourceMetadataFactoryInterface;
 use ApiPlatform\Core\Metadata\Resource\ResourceMetadata;
 use ApiPlatform\Core\Tests\Fixtures\DummyEntity;
+use function GuzzleHttp\Promise\inspect;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\GetResponseForControllerResultEvent;
@@ -73,8 +74,8 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
         $validatorProphecy->validate($data, null, $expectedValidationGroups)->shouldBeCalled();
         $validator = $validatorProphecy->reveal();
 
-        $closure = function () use ($expectedValidationGroups) {
-            return $expectedValidationGroups;
+        $closure = function ($data) use ($expectedValidationGroups): array {
+            return $data instanceof DummyEntity ? $expectedValidationGroups : [];
         };
 
         list($resourceMetadataFactory, $event) = $this->createEventObject($closure, $data);
@@ -96,9 +97,9 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
         $containerProphecy = $this->prophesize(ContainerInterface::class);
         $containerProphecy->has('groups_builder')->willReturn(true)->shouldBeCalled();
         $containerProphecy->get('groups_builder')->willReturn(new class() {
-            public function __invoke(): array
+            public function __invoke($data): array
             {
-                return ['a', 'b', 'c'];
+                return $data instanceof DummyEntity ? ['a', 'b', 'c'] : [];
             }
         }
         )->shouldBeCalled();
@@ -147,9 +148,7 @@ class ValidateListenerTest extends \PHPUnit_Framework_TestCase
     private function createEventObject($expectedValidationGroups, $data, bool $receive = true): array
     {
         $resourceMetadata = new ResourceMetadata(null, null, null, [
-            'create' => [
-                'validation_groups' => $expectedValidationGroups,
-            ],
+            'create' => ['validation_groups' => $expectedValidationGroups],
         ]);
 
         $resourceMetadataFactoryProphecy = $this->prophesize(ResourceMetadataFactoryInterface::class);

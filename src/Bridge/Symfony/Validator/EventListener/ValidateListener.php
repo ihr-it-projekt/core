@@ -78,7 +78,7 @@ final class ValidateListener
             ($service = $this->container->get($validationGroups)) &&
             is_callable($service)
         ) {
-            $validationGroups = $service();
+            $validationGroups = $service($data);
         } elseif (is_callable($validationGroups)) {
             $validationGroups = call_user_func_array($validationGroups, [$data]);
         }
